@@ -8,27 +8,185 @@
 </head>
 <body>
         <h3>Canvas Filter</h3>
-        <!--灰階--->
+        <button onclick="OpenFileDrive();">Open File from Drive</button>
+        <button onclick="pickFile();">OpenFile </button>
+        <!--使用者選擇圖片-->
+        <input type="file" onchange="loadFile(this);" id="file-input" style="display:none;"/>
+        <button onclick="saveFileToDrive();">Save File to Drive</button>
+        <button onclick="downloadFile();">download</button>
+        <a download="test.jpg" href = "PT2.jpg" id="download-link"></a>
+        <!--灰階-->
         <button onclick="grayscale();">Grayscale</button><br/>
-        <!--反轉--->
+        <!--反轉-->
         <button onclick="invert();">invert</button><br/>
-        <!--紅色遮罩--->
+        <!--紅色遮罩-->
         <button onclick="oneColor();">顏色遮罩</button><br/>
         <canvas id="cvs" width="800" height="600" style="border: 1px solid black" ></canvas>
         <script>
+            let CLIENT_ID = '82545112004-srupllehar5gavs6isu77rgqgaf5egvt.apps.googleusercontent.com';
+            let API_KEY = 'AIzaSyCC4h8xnbXlh-8IdV_5KaiB7-J7C7jKh3Q';
+            let SCOPES = 'https://www.googleapis.com/auth/drive.file';
+            let auth = null;//還不知道使用者有沒有登入
+            //從google 打開圖片
+            function OpenFileDrive(){
+                if(auth.isSignedIn.get()){
+                    //打開檔案選擇器
+                   creatPicket();
+                    
+                }else{
+                    //鼓勵使用者登入
+                    auth.signIn().then(function(){
+                        alert("登入成功打開檔案選擇器");
+                        
+                    });
+                }             
+            }
+            function creatPicket(){
+                //取得授權碼
+                //https://www.googleapis.com/drive/v3/drives/v3/file?access_token=授權碼
+                let accessToken=auth.currentUser.get().getAuthResponse().access_token;
+                console.log(accessToken)
+                //顯示檔案選擇器
+                let view = new google.picker.View(google.picker.ViewId.DOCS);
+                view.setMimeTypes("image/png,image/jpeg,image/jpg");
+                let picker = new google.picker.PickerBuilder()
+                    .enableFeature(google.picker.Feature.NAV_HIDDEN)
+                    .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
+                    .setAppId("82545112004")
+                    .setOAuthToken(accessToken)
+                    .addView(view)
+                    .addView(new google.picker.DocsUploadView())
+                    .setDeveloperKey(API_KEY)
+                    .setCallback(pickerCallback)
+                    .build();
+                     picker.setVisible(true);
+                    }
+                function pickerCallback(data){
+                    if (data.action == google.picker.Action.PICKED) {
+                    let  fileId = data.docs[0].id;
+                    console.log(data.docs[0].id);
+                    downloadFileFromDrive(fileId);
+                    }
+                    
+                }
+            function downloadFileFromDrive(fileId){
+                //取得授權碼
+                //https://www.googleapis.com/drive/v3/drives/v3/file?access_token=授權碼
+                let accessToken=auth.currentUser.get().getAuthResponse().access_token;
+                console.log(accessToken)
+                 //利用AJAX 下載檔案
+                let xhr = new XMLHttpRequest();
+                xhr.open("get","https://www.googleapis.com/drive/v3/files/"*fileId+"?alt=media&access_Token="+accessToken);
+
+                xhr.addEventListener("load",function(){
+                    console.log(xhr.response);//用ArrayBuffer 的形式取得伺服器的回應資料
+                    let blob =new Blob([xhr.response]);
+                    let src = URL.createObjectURL(blob);
+                    loadFile(src);
+                });
+                xhr.send();
+            }
+
+            function saveFileToDrive(){
+                let accessToken=auth.currentUser.get().getAuthResponse().access_token;
+        
+                let data = cvs.toDataURL();//將圖片資料輸出成base64編碼的字串
+                console.log(data);
+                data=data.replace("data:image/png;base64","");
+                //將資料上傳至googleDrive
+                let boundary="asdasdsdada";
+                //準備上傳的主內容
+                let body = "--"+boundary+"\r\n"+
+                "Content-Type: application/json; charset=UTF-8\r\n\r\n"+
+                "{\"name\":\"test.png\"}\r\n"+
+                "--"+boundary+"\r\n"+
+                "Content-Type: image/png\r\n"+
+                "Content-Transfer-Encoding: base\r\n\r\n"+
+                data+"\r\n"+
+                "--"+boundary+"--";
+                //處理網路連線
+                let xhr= new XMLHttpRequest();
+                xhr.open(post,"https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart");
+                xhr.setRequestHeader("Authorization"," Bearer "+accessToken);
+                xhr.setRequestHeader("Content-Type","multipart/related; boundary="+boundary);
+                xhr.addEventListener("load",function(){
+                    console.log(xhr.responseText);
+                });
+                xhr.send();
+                
+            }
+
+
+
+
+
+
+
+            function handleClientLoad() {
+                //載入登入用的套件
+                gapi.load('client:auth2', initClient);
+                //載入Picker
+                gapi.load("picker");
+            }
+            function initClient() {
+                //初始化套件，順便檢查使用者的登入狀態
+                gapi.client.init({
+                apiKey: API_KEY,
+                clientId: CLIENT_ID,
+                //discoveryDocs: DISCOVERY_DOCS, //官網舊寫法先拿掉
+                scope: SCOPES
+            }).then(function () {
+                //把使用者的登入狀態紀錄下來
+                auth= gapi.auth2.getAuthInstance();
+
+            }, function(error) {
+               console.log(error);
+            });
+        }
+
+      
+
+
+
+
+        //下載更改後圖檔
+        function downloadFile(){
+            let link=document.querySelector("#download-link");
+            //把canvas的資料轉換成Blob物件(用來存放二進位資料)
+             cvs.toBlob(function(blob){
+                let  src = URL.createObjectURL(blob);
+                link.href=src;
+                 //可在寫程式讓使用者自行輸入檔名
+                link.download="PT3.jpg";
+                link.click();
+
+            })  
+        }
+        //改變選擇檔案UI按鍵
+        function pickFile(){
+            let input=document.querySelector("#file-input");
+            input.click();
+
+        }
+
+        //使用者自己選圖
+         function loadFile(input){
+            let file = input.files[0];
+            let src = URL.createObjectURL(file);
+            console.log(src);
+            loadImages(src);
+         }
 
         function oneColor(){
-                        let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
-                        let data=pixels.data;
-                        //去除圖片中所有某元素
-                        let avg;
-                        for(let i=0;i<data.length;i+=4){
-                            data[i]=1;
-                        }
-                        ctx.putImageData(pixels,0,0);
-                    }
-
-
+                     let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
+                    let data=pixels.data;
+                     //去除圖片中所有某元素
+                     let avg;
+                    for(let i=0;i<data.length;i+=4){
+                         data[i]=1;
+                     }
+                     ctx.putImageData(pixels,0,0);
+                 }
             function invert(){
                 let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
                 let data=pixels.data;
@@ -56,26 +214,29 @@
                 }
                 ctx.putImageData(pixels,0,0);
             }
+
+            function loadImages(src){
+                let img=new Image();
+                img.src=src;
+                img.addEventListener("load",function(){
+                    cvs.width=img.width;
+                    cvs.height=img.height;          
+                    ctx.drawImage(img,0,0,img.width,img.height);
+                });
+
+            };
     
             let cvs=document.querySelector("#cvs");
             let ctx=cvs.getContext("2d");//取得canvas對應Context物件
-    
-            //ctx.fillRect(50,50,100,100);
-    
-            //ctx.drawImage(圖片物件,50,50,100,100));
-            let img=new Image();
-            img.src="picture.jpg";
-            img.addEventListener("load",function(){
-                //確定圖片載入完成，才畫上去
-                cvs.width=img.width;
-                cvs.height=img.height;          
-                ctx.drawImage(img,0,0,img.width,img.height);
-    
-    
-            });
-            
-    
+
         </script>
+
+
+    <!--載入google選擇器-->
+    <script async defer src="https://apis.google.com/js/api.js"
+        onload="this.onload=function(){};handleClientLoad()"
+        onreadystatechange="if (this.readyState === 'complete') this.onload()">
+    </script>
     
     </body>
 </html>

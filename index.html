@@ -1,242 +1,134 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Canvas Filter</title>
-</head>
-<body>
-        <h3>Canvas Filter</h3>
-        <button onclick="OpenFileDrive();">Open File from Drive</button>
-        <button onclick="pickFile();">OpenFile </button>
-        <!--使用者選擇圖片-->
-        <input type="file" onchange="loadFile(this);" id="file-input" style="display:none;"/>
-        <button onclick="saveFileToDrive();">Save File to Drive</button>
-        <button onclick="downloadFile();">download</button>
-        <a download="test.jpg" href = "PT2.jpg" id="download-link"></a>
-        <!--灰階-->
-        <button onclick="grayscale();">Grayscale</button><br/>
-        <!--反轉-->
-        <button onclick="invert();">invert</button><br/>
-        <!--紅色遮罩-->
-        <button onclick="oneColor();">顏色遮罩</button><br/>
-        <canvas id="cvs" width="800" height="600" style="border: 1px solid black" ></canvas>
-        <script>
-            let CLIENT_ID = '82545112004-srupllehar5gavs6isu77rgqgaf5egvt.apps.googleusercontent.com';
-            let API_KEY = 'AIzaSyCC4h8xnbXlh-8IdV_5KaiB7-J7C7jKh3Q';
-            let SCOPES = 'https://www.googleapis.com/auth/drive.file';
-            let auth = null;//還不知道使用者有沒有登入
-            //從google 打開圖片
-            function OpenFileDrive(){
-                if(auth.isSignedIn.get()){
-                    //打開檔案選擇器
-                   creatPicket();
-                    
-                }else{
-                    //鼓勵使用者登入
-                    auth.signIn().then(function(){
-                        alert("登入成功打開檔案選擇器");
-                        
-                    });
-                }             
-            }
-            function creatPicket(){
-                //取得授權碼
-                //https://www.googleapis.com/drive/v3/drives/v3/file?access_token=授權碼
-                let accessToken=auth.currentUser.get().getAuthResponse().access_token;
-                console.log(accessToken)
-                //顯示檔案選擇器
-                let view = new google.picker.View(google.picker.ViewId.DOCS);
-                view.setMimeTypes("image/png,image/jpeg,image/jpg");
-                let picker = new google.picker.PickerBuilder()
-                    .enableFeature(google.picker.Feature.NAV_HIDDEN)
-                    .enableFeature(google.picker.Feature.MULTISELECT_ENABLED)
-                    .setAppId("82545112004")
-                    .setOAuthToken(accessToken)
-                    .addView(view)
-                    .addView(new google.picker.DocsUploadView())
-                    .setDeveloperKey(API_KEY)
-                    .setCallback(pickerCallback)
-                    .build();
-                     picker.setVisible(true);
-                    }
-                function pickerCallback(data){
-                    if (data.action == google.picker.Action.PICKED) {
-                    let  fileId = data.docs[0].id;
-                    console.log(data.docs[0].id);
-                    downloadFileFromDrive(fileId);
-                    }
-                    
-                }
-            function downloadFileFromDrive(fileId){
-                //取得授權碼
-                //https://www.googleapis.com/drive/v3/drives/v3/file?access_token=授權碼
-                let accessToken=auth.currentUser.get().getAuthResponse().access_token;
-                console.log(accessToken)
-                 //利用AJAX 下載檔案
-                let xhr = new XMLHttpRequest();
-                xhr.open("get","https://www.googleapis.com/drive/v3/files/"*fileId+"?alt=media&access_Token="+accessToken);
+<html>
+  <head>
+    <title>Drive API Quickstart</title>
+    <meta charset="utf-8" />
+  </head>
+  <body>
+    <p>Drive API Quickstart</p>
 
-                xhr.addEventListener("load",function(){
-                    console.log(xhr.response);//用ArrayBuffer 的形式取得伺服器的回應資料
-                    let blob =new Blob([xhr.response]);
-                    let src = URL.createObjectURL(blob);
-                    loadFile(src);
-                });
-                xhr.send();
-            }
+    <!--Add buttons to initiate auth sequence and sign out-->
+    <button id="authorize_button" style="display: none;">Authorize</button>
+    <button id="signout_button" style="display: none;">Sign Out</button>
 
-            function saveFileToDrive(){
-                let accessToken=auth.currentUser.get().getAuthResponse().access_token;
-        
-                let data = cvs.toDataURL();//將圖片資料輸出成base64編碼的字串
-                console.log(data);
-                data=data.replace("data:image/png;base64","");
-                //將資料上傳至googleDrive
-                let boundary="asdasdsdada";
-                //準備上傳的主內容
-                let body = "--"+boundary+"\r\n"+
-                "Content-Type: application/json; charset=UTF-8\r\n\r\n"+
-                "{\"name\":\"test.png\"}\r\n"+
-                "--"+boundary+"\r\n"+
-                "Content-Type: image/png\r\n"+
-                "Content-Transfer-Encoding: base\r\n\r\n"+
-                data+"\r\n"+
-                "--"+boundary+"--";
-                //處理網路連線
-                let xhr= new XMLHttpRequest();
-                xhr.open(post,"https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart");
-                xhr.setRequestHeader("Authorization"," Bearer "+accessToken);
-                xhr.setRequestHeader("Content-Type","multipart/related; boundary="+boundary);
-                xhr.addEventListener("load",function(){
-                    console.log(xhr.responseText);
-                });
-                xhr.send();
-                
-            }
+    <pre id="content" style="white-space: pre-wrap;"></pre>
 
+    <script type="text/javascript">
+      // Client ID and API key from the Developer Console
+      var CLIENT_ID = '82545112004-srupllehar5gavs6isu77rgqgaf5egvt.apps.googleusercontent.com';
+      var API_KEY = 'AIzaSyCC4h8xnbXlh-8IdV_5KaiB7-J7C7jKh3Q';
 
+      // Array of API discovery doc URLs for APIs used by the quickstart
+      var DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/drive/v3/rest"];
 
+      // Authorization scopes required by the API; multiple scopes can be
+      // included, separated by spaces.
+      var SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
+      var authorizeButton = document.getElementById('authorize_button');
+      var signoutButton = document.getElementById('signout_button');
 
+      /**
+       *  On load, called to load the auth2 library and API client library.
+       */
+      function handleClientLoad() {
+        //載入登入用的套件
+        gapi.load('client:auth2', initClient);
+      }
+      isSignedIn
+      /**
+       *  Initializes the API client library and sets up sign-in state
+       *  listeners.
+       */
+      function initClient() {
+        //初始化套件，順便檢查使用者的登入狀態
+        gapi.client.init({
+          apiKey: API_KEY,
+          clientId: CLIENT_ID,
+          discoveryDocs: DISCOVERY_DOCS,
+          scope: SCOPES
+        }).then(function () {
+          //追蹤使用者登入狀態的變化，如果有變化呼叫 updateSigninStatus()
+          // Listen for sign-in state changes.
+          gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
 
+          // Handle the initial sign-in state.
+          //根據初始登入狀態，做一些事情
+          updateSigninStatus(gapi.auth2.getAuthInstance().isSignedIn.get());
+          authorizeButton.onclick = handleAuthClick;
+          signoutButton.onclick = handleSignoutClick;
+        }, function(error) {
+          appendPre(JSON.stringify(error, null, 2));
+        });
+      }
 
-            function handleClientLoad() {
-                //載入登入用的套件
-                gapi.load('client:auth2', initClient);
-                //載入Picker
-                gapi.load("picker");
-            }
-            function initClient() {
-                //初始化套件，順便檢查使用者的登入狀態
-                gapi.client.init({
-                apiKey: API_KEY,
-                clientId: CLIENT_ID,
-                //discoveryDocs: DISCOVERY_DOCS, //官網舊寫法先拿掉
-                scope: SCOPES
-            }).then(function () {
-                //把使用者的登入狀態紀錄下來
-                auth= gapi.auth2.getAuthInstance();
-
-            }, function(error) {
-               console.log(error);
-            });
+      /**
+       *  Called when the signed in status changes, to update the UI
+       *  appropriately. After a sign-in, the API is called.
+       */
+      function updateSigninStatus(isSignedIn) {
+        if (isSignedIn) {//使用這已登入
+          authorizeButton.style.display = 'none';
+          signoutButton.style.display = 'block';//登出按鈕顯示
+          listFiles();//呼叫API
+        } else {//使用者未登入
+          authorizeButton.style.display = 'block';//顯示登入按鈕
+          signoutButton.style.display = 'none';
         }
+      }
 
-      
+      /**
+       *  Sign in the user upon button click.
+       */
+      function handleAuthClick(event) {
+        gapi.auth2.getAuthInstance().signIn();
+      }
 
+      /**
+       *  Sign out the user upon button click.
+       */
+      function handleSignoutClick(event) {
+        gapi.auth2.getAuthInstance().signOut();
+      }
 
+      /**
+       * Append a pre element to the body containing the given message
+       * as its text node. Used to display the results of the API call.
+       *
+       * @param {string} message Text to be placed in pre element.
+       */
+      function appendPre(message) {
+        var pre = document.getElementById('content');
+        var textContent = document.createTextNode(message + '\n');
+        pre.appendChild(textContent);
+      }
 
-
-        //下載更改後圖檔
-        function downloadFile(){
-            let link=document.querySelector("#download-link");
-            //把canvas的資料轉換成Blob物件(用來存放二進位資料)
-             cvs.toBlob(function(blob){
-                let  src = URL.createObjectURL(blob);
-                link.href=src;
-                 //可在寫程式讓使用者自行輸入檔名
-                link.download="PT3.jpg";
-                link.click();
-
-            })  
-        }
-        //改變選擇檔案UI按鍵
-        function pickFile(){
-            let input=document.querySelector("#file-input");
-            input.click();
-
-        }
-
-        //使用者自己選圖
-         function loadFile(input){
-            let file = input.files[0];
-            let src = URL.createObjectURL(file);
-            console.log(src);
-            loadImages(src);
-         }
-
-        function oneColor(){
-                     let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
-                    let data=pixels.data;
-                     //去除圖片中所有某元素
-                     let avg;
-                    for(let i=0;i<data.length;i+=4){
-                         data[i]=1;
-                     }
-                     ctx.putImageData(pixels,0,0);
-                 }
-            function invert(){
-                let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
-                let data=pixels.data;
-                //255為每一個顏色位置加最多，用255去扣就可以得相反的顏色
-                let avg;
-                for(let i=0;i<data.length;i+=4){
-                    data[i]=255-data[i];
-                    data[i+1]=255-data[i+1];
-                    data[i+2]=255-data[i+2];
-                }
-                ctx.putImageData(pixels,0,0);
+      /**
+       * Print files.
+       */
+      function listFiles() {
+        gapi.client.drive.files.list({
+          'pageSize': 10,
+          'fields': "nextPageToken, files(id, name)"
+        }).then(function(response) {
+          appendPre('Files:');
+          var files = response.result.files;
+          if (files && files.length > 0) {
+            for (var i = 0; i < files.length; i++) {
+              var file = files[i];
+              appendPre(file.name + ' (' + file.id + ')');
             }
+          } else {
+            appendPre('No files found.');
+          }
+        });
+      }
 
-            //grayscale按鈕進行灰階的改變
-            function grayscale(){
-                let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
-                let data=pixels.data;
-                //以像素位單位，一次像素有四個資料，代表r,g,b,a
-                let avg;
-                for(let i=0;i<data.length;i+=4){
-                    avg=(data[i]+data[i+1]+data[i+2])/3;
-                    data[i]=avg;
-                    data[i+1]=avg;
-                    data[i+2]=avg;
-                }
-                ctx.putImageData(pixels,0,0);
-            }
-
-            function loadImages(src){
-                let img=new Image();
-                img.src=src;
-                img.addEventListener("load",function(){
-                    cvs.width=img.width;
-                    cvs.height=img.height;          
-                    ctx.drawImage(img,0,0,img.width,img.height);
-                });
-
-            };
-    
-            let cvs=document.querySelector("#cvs");
-            let ctx=cvs.getContext("2d");//取得canvas對應Context物件
-
-        </script>
-
-
-    <!--載入google選擇器-->
-    <script async defer src="https://apis.google.com/js/api.js"
-        onload="this.onload=function(){};handleClientLoad()"
-        onreadystatechange="if (this.readyState === 'complete') this.onload()">
     </script>
-    
-    </body>
+
+    <script async defer src="https://apis.google.com/js/api.js"
+      onload="this.onload=function(){};handleClientLoad()"
+      onreadystatechange="if (this.readyState === 'complete') this.onload()">
+    </script>
+  </body>
 </html>

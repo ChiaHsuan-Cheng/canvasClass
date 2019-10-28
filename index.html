@@ -5,49 +5,77 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Canvas Filter</title>
-   
 </head>
-
-
 <body>
-    <h3>Canvas Filter</h3>
-    <button onclick="grayscale();">Grayscale</button><br/>
-    <canvas id="cvs" width="800" height="600" style="border: 1px solid black" ></canvas>
-    <script>
-        //grayscale按鈕進行灰階的改變
-        function grayscale(){
-            let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
-            let data=pixels.data;
-            //以像素位單位，一次像素有四個資料，代表r,g,b,a
-            let avg;
-            for(let i=0;i<data.length;i+=4){
-                avg=(data[i]+data[i+1]+data[i+2])/3;
-                data[i]=avg;
-                data[i+1]=avg;
-                data[i+2]=avg;
+        <h3>Canvas Filter</h3>
+        <!--灰階--->
+        <button onclick="grayscale();">Grayscale</button><br/>
+        <!--反轉--->
+        <button onclick="invert();">invert</button><br/>
+        <!--紅色遮罩--->
+        <button onclick="oneColor();">顏色遮罩</button><br/>
+        <canvas id="cvs" width="800" height="600" style="border: 1px solid black" ></canvas>
+        <script>
+
+        function oneColor(){
+                        let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
+                        let data=pixels.data;
+                        //去除圖片中所有某元素
+                        let avg;
+                        for(let i=0;i<data.length;i+=4){
+                            data[i]=1;
+                        }
+                        ctx.putImageData(pixels,0,0);
+                    }
+
+
+            function invert(){
+                let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
+                let data=pixels.data;
+                //255為每一個顏色位置加最多，用255去扣就可以得相反的顏色
+                let avg;
+                for(let i=0;i<data.length;i+=4){
+                    data[i]=255-data[i];
+                    data[i+1]=255-data[i+1];
+                    data[i+2]=255-data[i+2];
+                }
+                ctx.putImageData(pixels,0,0);
             }
-            ctx.putImageData(pixels,0,0);
-        }
 
-        let cvs=document.querySelector("#cvs");
-        let ctx=cvs.getContext("2d");//取得canvas對應Context物件
-
-        //ctx.fillRect(50,50,100,100);
-
-        //ctx.drawImage(圖片物件,50,50,100,100));
-        let img=new Image();
-        img.src="picture.jpg";
-        img.addEventListener("load",function(){
-            //確定圖片載入完成，才畫上去
-            cvs.width=img.width;
-            cvs.height=img.height;          
-            ctx.drawImage(img,0,0,img.width,img.height);
-
-
-        });
-        
-
-    </script>
-
-</body>
+            //grayscale按鈕進行灰階的改變
+            function grayscale(){
+                let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
+                let data=pixels.data;
+                //以像素位單位，一次像素有四個資料，代表r,g,b,a
+                let avg;
+                for(let i=0;i<data.length;i+=4){
+                    avg=(data[i]+data[i+1]+data[i+2])/3;
+                    data[i]=avg;
+                    data[i+1]=avg;
+                    data[i+2]=avg;
+                }
+                ctx.putImageData(pixels,0,0);
+            }
+    
+            let cvs=document.querySelector("#cvs");
+            let ctx=cvs.getContext("2d");//取得canvas對應Context物件
+    
+            //ctx.fillRect(50,50,100,100);
+    
+            //ctx.drawImage(圖片物件,50,50,100,100));
+            let img=new Image();
+            img.src="picture.jpg";
+            img.addEventListener("load",function(){
+                //確定圖片載入完成，才畫上去
+                cvs.width=img.width;
+                cvs.height=img.height;          
+                ctx.drawImage(img,0,0,img.width,img.height);
+    
+    
+            });
+            
+    
+        </script>
+    
+    </body>
 </html>

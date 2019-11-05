@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Canvas Filter</title>
+</head>
+<body>
+        <h3>Canvas Filter</h3>
+        <button onclick="pickFile();">OpenFile </button>
+        <!--使用者選擇圖片-->
+        <input type="file" onchange="loadFile(this);" id="file-input" style="display:none;"/>
+        
+        <button onclick="downloadFile();">download</button>
+        <a download="test.jpg" href = "PT2.jpg" id="download-link"></a>
+        <!--灰階-->
+        <button onclick="grayscale();">Grayscale</button><br/>
+        <!--反轉-->
+        <button onclick="invert();">invert</button><br/>
+        <!--紅色遮罩-->
+        <button onclick="oneColor();">顏色遮罩</button><br/>
+        <canvas id="cvs" width="800" height="600" style="border: 1px solid black" ></canvas>
+        <script>
+ 
+
+        //下載更改後圖檔
+        function downloadFile(){
+            let link=document.querySelector("#download-link");
+            //把canvas的資料轉換成Blob物件(用來存放二進位資料)
+             cvs.toBlob(function(blob){
+                let  src = URL.createObjectURL(blob);
+                link.href=src;
+                 //可在寫程式讓使用者自行輸入檔名
+                link.download="PT3.jpg";
+                link.click();
+
+            })  
+        }
+        //改變選擇檔案UI按鍵
+        function pickFile(){
+            let input=document.querySelector("#file-input");
+            input.click();
+
+        }
+
+        //使用者自己選圖
+         function loadFile(input){
+            let file = input.files[0];
+            let src = URL.createObjectURL(file);
+            console.log(src);
+            loadImages(src);
+         }
+
+        function oneColor(){
+                     let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
+                    let data=pixels.data;
+                     //去除圖片中所有某元素
+                     let avg;
+                    for(let i=0;i<data.length;i+=4){
+                         data[i]=1;
+                     }
+                     ctx.putImageData(pixels,0,0);
+                 }
+            function invert(){
+                let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
+                let data=pixels.data;
+                //255為每一個顏色位置加最多，用255去扣就可以得相反的顏色
+                let avg;
+                for(let i=0;i<data.length;i+=4){
+                    data[i]=255-data[i];
+                    data[i+1]=255-data[i+1];
+                    data[i+2]=255-data[i+2];
+                }
+                ctx.putImageData(pixels,0,0);
+            }
+
+            //grayscale按鈕進行灰階的改變
+            function grayscale(){
+                let pixels=ctx.getImageData(0,0,cvs.width,cvs.height);
+                let data=pixels.data;
+                //以像素位單位，一次像素有四個資料，代表r,g,b,a
+                let avg;
+                for(let i=0;i<data.length;i+=4){
+                    avg=(data[i]+data[i+1]+data[i+2])/3;
+                    data[i]=avg;
+                    data[i+1]=avg;
+                    data[i+2]=avg;
+                }
+                ctx.putImageData(pixels,0,0);
+            }
+
+            function loadImages(src){
+                let img=new Image();
+                img.src=src;
+                img.addEventListener("load",function(){
+                    cvs.width=img.width;
+                    cvs.height=img.height;          
+                    ctx.drawImage(img,0,0,img.width,img.height);
+                });
+
+            };
+    
+            let cvs=document.querySelector("#cvs");
+            let ctx=cvs.getContext("2d");//取得canvas對應Context物件
+
+        </script>
+
+
+    <!--載入google選擇器-->
+    <script async defer src="https://apis.google.com/js/api.js"
+        onload="this.onload=function(){};handleClientLoad()"
+        onreadystatechange="if (this.readyState === 'complete') this.onload()">
+    </script>
+    
+    </body>
+</html>
